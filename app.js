@@ -11,11 +11,56 @@ let db = null;
 let currentStream = null;
 let currentImageData = null;
 
+// ===== INICIALIZACIÓN =====
+document.addEventListener('DOMContentLoaded', () => {
+    initializeDB();
+    initializeNavigation();
+    initializeEventListeners();
+    loadAPIKey();
+    // loadOrders y updateStats se llaman dentro de initializeDB.onsuccess
+});
+
+// ===== INDEXEDDB =====
+function initializeDB() {
+    const request = indexedDB.open(CONFIG.DB_NAME, CONFIG.DB_VERSION);
+
+    request.onerror = (event) => {
+        console.error('Error al abrir IndexedDB:', event.target.error);
+        showNotification('Error al inicializar la base de datos', 'error');
+    };
+
+    request.onsuccess = (event) => {
+        db = event.target.result;
+        console.log('Base de datos inicializada correctamente');
+        loadOrders();
+        updateStats();
+    };
+
+    request.onupgradeneeded = (event) => {
+        db = event.target.result;
+
+        if (!db.objectStoreNames.contains(CONFIG.STORE_NAME)) {
+            const objectStore = db.createObjectStore(CONFIG.STORE_NAME, {
+                keyPath: 'id',
+                autoIncrement: true
+            });
+            objectStore.createIndex('orderNumber', 'orderNumber', { unique: false });
+            objectStore.createIndex('clientName', 'clientName', { unique: false });
+            objectStore.createIndex('clientNumber', 'clientNumber', { unique: false });
+            objectStore.createIndex('date', 'date', { unique: false });
+            objectStore.createIndex('status', 'status', { unique: false });
+            objectStore.createIndex('timestamp', 'timestamp', { unique: false });
+        }
+    };
+}
 
 function saveOrderToDB(orderData) {
     return new Promise((resolve, reject) => {
         const transaction = db.transaction([CONFIG.STORE_NAME], 'readwrite');
         const objectStore = transaction.objectStore(CONFIG.STORE_NAME);
+
+        // Verificar duplicados antes de guardar (si es necesario, pero aquí guardamos directo)
+        // La verificación de duplicados se hace antes de llamar a esta función
 
         const order = {
             ...orderData,
@@ -38,6 +83,10 @@ function saveOrderToDB(orderData) {
 
 function getAllOrders() {
     return new Promise((resolve, reject) => {
+        if (!db) {
+            resolve([]);
+            return;
+        }
         const transaction = db.transaction([CONFIG.STORE_NAME], 'readonly');
         const objectStore = transaction.objectStore(CONFIG.STORE_NAME);
         const request = objectStore.getAll();
@@ -130,33 +179,52 @@ function navigateToSection(sectionName) {
 // ===== EVENT LISTENERS =====
 function initializeEventListeners() {
     // Botones de captura
-    document.getElementById('btn-camera').addEventListener('click', activateCamera);
-    document.getElementById('btn-gallery').addEventListener('click', () => {
+    const btnCamera = document.getElementById('btn-camera');
+    if (btnCamera) btnCamera.addEventListener('click', activateCamera);
+
+    const btnGallery = document.getElementById('btn-gallery');
+    if (btnGallery) btnGallery.addEventListener('click', () => {
         document.getElementById('file-input').click();
     });
-    document.getElementById('btn-example').addEventListener('click', loadExampleOrder);
+
+    const btnExample = document.getElementById('btn-example');
+    if (btnExample) btnExample.addEventListener('click', loadExampleOrder);
 
     // Controles de cámara
-    document.getElementById('btn-capture').addEventListener('click', capturePhoto);
-    document.getElementById('btn-cancel-camera').addEventListener('click', stopCamera);
+    const btnCapture = document.getElementById('btn-capture');
+    if (btnCapture) btnCapture.addEventListener('click', capturePhoto);
+
+    const btnCancelCamera = document.getElementById('btn-cancel-camera');
+    if (btnCancelCamera) btnCancelCamera.addEventListener('click', stopCamera);
 
     // Input de archivo
-    document.getElementById('file-input').addEventListener('change', handleFileSelect);
+    const fileInput = document.getElementById('file-input');
+    if (fileInput) fileInput.addEventListener('change', handleFileSelect);
 
     // Modal
-    document.getElementById('modal-close').addEventListener('click', closeModal);
-    document.getElementById('btn-discard').addEventListener('click', closeModal);
-    document.getElementById('btn-save-order').addEventListener('click', saveOrder);
+    const modalClose = document.getElementById('modal-close');
+    if (modalClose) modalClose.addEventListener('click', closeModal);
+
+    const btnDiscard = document.getElementById('btn-discard');
+    if (btnDiscard) btnDiscard.addEventListener('click', closeModal);
+
+    const btnSaveOrder = document.getElementById('btn-save-order');
+    if (btnSaveOrder) btnSaveOrder.addEventListener('click', saveOrder);
 
     // Configuración
-    document.getElementById('btn-save-config').addEventListener('click', saveConfiguration);
-    document.getElementById('btn-clear-data').addEventListener('click', clearAllData);
+    const btnSaveConfig = document.getElementById('btn-save-config');
+    if (btnSaveConfig) btnSaveConfig.addEventListener('click', saveConfiguration);
+
+    const btnClearData = document.getElementById('btn-clear-data');
+    if (btnClearData) btnClearData.addEventListener('click', clearAllData);
 
     // Exportar
-    document.getElementById('btn-export').addEventListener('click', exportData);
+    const btnExport = document.getElementById('btn-export');
+    if (btnExport) btnExport.addEventListener('click', exportData);
 
     // Búsqueda
-    document.getElementById('search-input').addEventListener('input', handleSearch);
+    const searchInput = document.getElementById('search-input');
+    if (searchInput) searchInput.addEventListener('input', handleSearch);
 
     // Filtros
     document.querySelectorAll('.filter-chip').forEach(chip => {
@@ -230,15 +298,17 @@ async function processImage(imageBlob) {
         // Mostrar vista previa
         const imageUrl = URL.createObjectURL(imageBlob);
         const previewImg = document.getElementById('preview-img');
-        previewImg.src = imageUrl;
-        document.getElementById('image-preview').classList.remove('hidden');
+        if (previewImg) {
+            previewImg.src = imageUrl;
+            document.getElementById('image-preview').classList.remove('hidden');
+        }
 
         // Convertir imagen a base64
         const base64Image = await blobToBase64(imageBlob);
         const base64Data = base64Image.split(',')[1];
 
-        // Llamar a la API de Gemini
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+        // Llamar a la API de Gemini (v1)
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -274,7 +344,9 @@ Si no puedes encontrar algún campo, usa valores por defecto razonables. Respond
         });
 
         if (!response.ok) {
-            throw new Error('Error en la respuesta de la API');
+            const errorData = await response.json().catch(() => ({}));
+            console.error('API Error Details:', errorData);
+            throw new Error(`Error API (${response.status}): ${errorData.error?.message || response.statusText}`);
         }
 
         const data = await response.json();
@@ -287,209 +359,80 @@ Si no puedes encontrar algún campo, usa valores por defecto razonables. Respond
             currentImageData = imageUrl;
             showOrderReviewModal(orderData);
         } else {
-            throw new Error('No se pudo extraer datos de la imagen');
+            throw new Error('No se pudo extraer datos JSON de la respuesta');
         }
 
     } catch (error) {
         console.error('Error al procesar la imagen:', error);
-        showNotification(`Error al procesar la imagen: ${error.message}`, 'error');
+        showNotification(`Error: ${error.message}`, 'error');
     } finally {
         showLoading(false);
     }
 }
 
-// Función para cargar un pedido de ejemplo
-async function loadExampleOrder() {
-    // Crear una imagen de ejemplo (1x1 pixel transparente)
-    const canvas = document.createElement('canvas');
-    canvas.width = 1;
-    canvas.height = 1;
-    const ctx = canvas.getContext('2d');
-    ctx.fillStyle = 'rgba(0,0,0,0)';
-    ctx.fillRect(0, 0, 1, 1);
+// ===== FUNCIONES DE CARGA Y GESTIÓN DE PEDIDOS =====
+function loadOrders() {
+    getAllOrders().then(orders => {
+        // Ordenar por fecha (más reciente primero)
+        orders.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
-    canvas.toBlob(async (blob) => {
-        // Simular datos de ejemplo sin llamar a la API
-        const exampleData = {
-            clientName: 'Cliente Ejemplo S.L.',
-            clientNumber: 'CLI-12345',
-            orderNumber: 'PED-' + Date.now(),
-            date: new Date().toISOString().split('T')[0],
-            referenceNumber: 'REF-ABC-123',
-            denomination: 'Producto de Ejemplo',
-            quantityMeters: 25.5,
-            status: 'pendiente',
-            notes: 'Este es un pedido de ejemplo para probar la aplicación'
-        };
-
-        const imageUrl = URL.createObjectURL(blob);
-        currentImageData = imageUrl;
-        showOrderReviewModal(exampleData);
-    }, 'image/png');
-}
-
-function blobToBase64(blob) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result);
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
-    });
-}
-
-// ===== MODAL DE REVISIÓN =====
-function showOrderReviewModal(orderData) {
-    document.getElementById('client-name').value = orderData.clientName || '';
-    document.getElementById('client-number').value = orderData.clientNumber || '';
-    document.getElementById('order-number').value = orderData.orderNumber || '';
-    document.getElementById('order-date').value = orderData.date || new Date().toISOString().split('T')[0];
-    document.getElementById('reference-number').value = orderData.referenceNumber || '';
-    document.getElementById('denomination').value = orderData.denomination || '';
-    document.getElementById('quantity-meters').value = orderData.quantityMeters || 0;
-    document.getElementById('order-status').value = orderData.status || 'pendiente';
-    document.getElementById('order-notes').value = orderData.notes || '';
-
-    document.getElementById('review-modal').classList.add('active');
-}
-
-function closeModal() {
-    document.getElementById('review-modal').classList.remove('active');
-    document.getElementById('image-preview').classList.add('hidden');
-    currentImageData = null;
-}
-
-// Función para verificar pedidos duplicados
-async function checkDuplicateOrder(orderNumber) {
-    try {
-        const orders = await getAllOrders();
-        return orders.find(order => order.orderNumber === orderNumber);
-    } catch (error) {
-        console.error('Error al verificar duplicados:', error);
-        return null;
-    }
-}
-
-async function saveOrder() {
-    const orderData = {
-        clientName: document.getElementById('client-name').value,
-        clientNumber: document.getElementById('client-number').value,
-        orderNumber: document.getElementById('order-number').value,
-        date: document.getElementById('order-date').value,
-        referenceNumber: document.getElementById('reference-number').value,
-        denomination: document.getElementById('denomination').value,
-        quantityMeters: parseFloat(document.getElementById('quantity-meters').value),
-        status: document.getElementById('order-status').value,
-        notes: document.getElementById('order-notes').value,
-        imageUrl: currentImageData
-    };
-
-    try {
-        // Verificar si ya existe un pedido con el mismo número
-        const existingOrder = await checkDuplicateOrder(orderData.orderNumber);
-
-        if (existingOrder) {
-            const replace = confirm(
-                `⚠️ PEDIDO DUPLICADO\n\n` +
-                `Ya existe un pedido con el número "${orderData.orderNumber}".\n\n` +
-                `Cliente: ${existingOrder.clientName}\n` +
-                `Fecha: ${existingOrder.date}\n\n` +
-                `¿Deseas REEMPLAZAR el pedido anterior con este nuevo?`
-            );
-
-            if (!replace) {
-                showNotification('Guardado cancelado - Pedido duplicado', 'warning');
-                return;
-            }
-
-            // Eliminar el pedido anterior
-            await deleteOrderFromDB(existingOrder.id);
-            showNotification('Pedido anterior eliminado', 'info');
-        }
-
-        await saveOrderToDB(orderData);
-        showNotification('Pedido guardado correctamente', 'success');
-        closeModal();
-        navigateToSection('data');
-    } catch (error) {
-        console.error('Error al guardar:', error);
-        showNotification('Error al guardar el pedido', 'error');
-    }
-}
-
-// ===== CARGAR Y MOSTRAR PEDIDOS =====
-async function loadOrders() {
-    try {
-        const orders = await getAllOrders();
-        const ordersList = document.getElementById('orders-list');
+        const container = document.getElementById('orders-list');
+        if (!container) return;
 
         if (orders.length === 0) {
-            ordersList.innerHTML = `
+            container.innerHTML = `
                 <div class="empty-state">
                     <div class="empty-state-icon">📦</div>
                     <h3 class="empty-state-title">No hay pedidos guardados</h3>
-                    <p class="empty-state-description">Comienza capturando tu primer pedido</p>
+                    <p class="empty-state-description">Escanea un documento para comenzar</p>
                 </div>
             `;
             return;
         }
 
-        // Ordenar por timestamp descendente
-        orders.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        container.innerHTML = orders.map(order => createOrderCard(order)).join('');
 
-        ordersList.innerHTML = orders.map(order => createOrderCard(order)).join('');
-
-        // Agregar event listeners a los botones
-        ordersList.querySelectorAll('.btn-delete-order').forEach(btn => {
-            btn.addEventListener('click', () => deleteOrder(btn.dataset.id));
+        // Agregar event listeners para botones de eliminar
+        document.querySelectorAll('.btn-delete-order').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const id = parseInt(btn.dataset.id);
+                deleteOrder(id);
+            });
         });
-
-    } catch (error) {
-        console.error('Error al cargar pedidos:', error);
-        showNotification('Error al cargar los pedidos', 'error');
-    }
+    });
 }
 
 function createOrderCard(order) {
+    const date = new Date(order.date).toLocaleDateString();
     const statusBadge = getStatusBadge(order.status);
-    const formattedDate = new Date(order.date).toLocaleDateString('es-ES');
 
     return `
         <div class="order-card">
             <div class="order-header">
-                <div>
-                    <div class="order-id">Pedido #${order.orderNumber}</div>
-                    <div class="order-date">${formattedDate}</div>
-                </div>
-                <div>${statusBadge}</div>
+                <span class="order-number">#${order.orderNumber || 'S/N'}</span>
+                ${statusBadge}
             </div>
             <div class="order-details">
-                <div class="order-detail">
-                    <span class="order-detail-label">Cliente:</span>
-                    <span class="order-detail-value">${order.clientName} (${order.clientNumber})</span>
+                <div class="detail-row">
+                    <span class="detail-label">Cliente:</span>
+                    <span class="detail-value">${order.clientName || 'Desconocido'}</span>
                 </div>
-                <div class="order-detail">
-                    <span class="order-detail-label">Referencia:</span>
-                    <span class="order-detail-value">${order.referenceNumber}</span>
+                <div class="detail-row">
+                    <span class="detail-label">Fecha:</span>
+                    <span class="detail-value">${date}</span>
                 </div>
-                <div class="order-detail">
-                    <span class="order-detail-label">Denominación:</span>
-                    <span class="order-detail-value">${order.denomination}</span>
+                <div class="detail-row">
+                    <span class="detail-label">Producto:</span>
+                    <span class="detail-value">${order.denomination || 'Sin descripción'}</span>
                 </div>
-                <div class="order-detail">
-                    <span class="order-detail-label">Cantidad:</span>
-                    <span class="order-detail-value">${order.quantityMeters} metros lineales</span>
+                <div class="detail-row">
+                    <span class="detail-label">Cantidad:</span>
+                    <span class="detail-value">${order.quantityMeters || 0} m</span>
                 </div>
-                ${order.notes ? `
-                <div class="order-detail">
-                    <span class="order-detail-label">Notas:</span>
-                    <span class="order-detail-value">${order.notes}</span>
-                </div>
-                ` : ''}
             </div>
             <div class="order-actions">
-                <button class="btn btn-danger btn-icon btn-delete-order" data-id="${order.id}" title="Eliminar">
-                    🗑️
-                </button>
+                <button class="btn-delete-order" data-id="${order.id}">🗑️ Eliminar</button>
             </div>
         </div>
     `;
@@ -526,16 +469,19 @@ async function updateStats() {
         const orders = await getAllOrders();
 
         // Total de pedidos
-        document.getElementById('stat-total').textContent = orders.length;
+        const totalEl = document.getElementById('stat-total');
+        if (totalEl) totalEl.textContent = orders.length;
 
         // Pedidos de hoy
         const today = new Date().toISOString().split('T')[0];
         const todayOrders = orders.filter(order => order.date === today);
-        document.getElementById('stat-today').textContent = todayOrders.length;
+        const todayEl = document.getElementById('stat-today');
+        if (todayEl) todayEl.textContent = todayOrders.length;
 
         // Pedidos pendientes
         const pendingOrders = orders.filter(order => order.status === 'pendiente');
-        document.getElementById('stat-pending').textContent = pendingOrders.length;
+        const pendingEl = document.getElementById('stat-pending');
+        if (pendingEl) pendingEl.textContent = pendingOrders.length;
 
     } catch (error) {
         console.error('Error al actualizar estadísticas:', error);
@@ -551,11 +497,11 @@ async function loadSearchResults(query = '', filter = 'all') {
         if (query) {
             query = query.toLowerCase();
             orders = orders.filter(order =>
-                order.orderNumber.toLowerCase().includes(query) ||
-                order.clientName.toLowerCase().includes(query) ||
-                order.clientNumber.toLowerCase().includes(query) ||
-                order.referenceNumber.toLowerCase().includes(query) ||
-                order.denomination.toLowerCase().includes(query)
+                (order.orderNumber && order.orderNumber.toLowerCase().includes(query)) ||
+                (order.clientName && order.clientName.toLowerCase().includes(query)) ||
+                (order.clientNumber && order.clientNumber.toLowerCase().includes(query)) ||
+                (order.referenceNumber && order.referenceNumber.toLowerCase().includes(query)) ||
+                (order.denomination && order.denomination.toLowerCase().includes(query))
             );
         }
 
@@ -565,6 +511,7 @@ async function loadSearchResults(query = '', filter = 'all') {
         }
 
         const searchResults = document.getElementById('search-results');
+        if (!searchResults) return;
 
         if (orders.length === 0) {
             searchResults.innerHTML = `
@@ -582,7 +529,10 @@ async function loadSearchResults(query = '', filter = 'all') {
 
         // Agregar event listeners
         searchResults.querySelectorAll('.btn-delete-order').forEach(btn => {
-            btn.addEventListener('click', () => deleteOrder(btn.dataset.id));
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                deleteOrder(btn.dataset.id);
+            });
         });
 
     } catch (error) {
@@ -592,7 +542,8 @@ async function loadSearchResults(query = '', filter = 'all') {
 
 function handleSearch(event) {
     const query = event.target.value;
-    const activeFilter = document.querySelector('.filter-chip.active').dataset.filter;
+    const activeChip = document.querySelector('.filter-chip.active');
+    const activeFilter = activeChip ? activeChip.dataset.filter : 'all';
     loadSearchResults(query, activeFilter);
 }
 
@@ -603,7 +554,8 @@ function handleFilterClick(event) {
 
     event.target.classList.add('active');
     const filter = event.target.dataset.filter;
-    const query = document.getElementById('search-input').value;
+    const searchInput = document.getElementById('search-input');
+    const query = searchInput ? searchInput.value : '';
     loadSearchResults(query, filter);
 }
 
@@ -617,11 +569,15 @@ function loadAPIKey() {
         localStorage.setItem(CONFIG.API_KEY_STORAGE, apiKey);
     }
 
-    document.getElementById('api-key-input').value = apiKey;
+    const input = document.getElementById('api-key-input');
+    if (input) input.value = apiKey;
 }
 
 function saveConfiguration() {
-    const apiKey = document.getElementById('api-key-input').value.trim();
+    const input = document.getElementById('api-key-input');
+    if (!input) return;
+
+    const apiKey = input.value.trim();
 
     if (!apiKey) {
         showNotification('Por favor, ingresa una API key válida', 'warning');
@@ -677,7 +633,6 @@ async function exportData() {
 }
 
 // ===== EJEMPLO =====
-// ===== EJEMPLO =====
 function loadExampleOrder() {
     const exampleData = {
         clientName: 'Empresa Ejemplo S.L.',
@@ -704,6 +659,97 @@ function loadExampleOrder() {
         currentImageData = imageUrl;
         showOrderReviewModal(exampleData);
     }, 'image/png');
+}
+
+// ===== MODAL Y GUARDADO =====
+function showOrderReviewModal(orderData) {
+    document.getElementById('client-name').value = orderData.clientName || '';
+    document.getElementById('client-number').value = orderData.clientNumber || '';
+    document.getElementById('order-number').value = orderData.orderNumber || '';
+    document.getElementById('order-date').value = orderData.date || new Date().toISOString().split('T')[0];
+    document.getElementById('reference-number').value = orderData.referenceNumber || '';
+    document.getElementById('denomination').value = orderData.denomination || '';
+    document.getElementById('quantity-meters').value = orderData.quantityMeters || '';
+    document.getElementById('status').value = orderData.status || 'pendiente';
+    document.getElementById('notes').value = orderData.notes || '';
+
+    document.getElementById('review-modal').classList.add('active');
+}
+
+function closeModal() {
+    document.getElementById('review-modal').classList.remove('active');
+    document.getElementById('image-preview').classList.add('hidden');
+    currentImageData = null;
+}
+
+async function saveOrder() {
+    const orderData = {
+        clientName: document.getElementById('client-name').value,
+        clientNumber: document.getElementById('client-number').value,
+        orderNumber: document.getElementById('order-number').value,
+        date: document.getElementById('order-date').value,
+        referenceNumber: document.getElementById('reference-number').value,
+        denomination: document.getElementById('denomination').value,
+        quantityMeters: parseFloat(document.getElementById('quantity-meters').value) || 0,
+        status: document.getElementById('status').value,
+        notes: document.getElementById('notes').value,
+        imageData: currentImageData
+    };
+
+    // Verificar duplicados
+    const isDuplicate = await checkDuplicateOrder(orderData.orderNumber);
+
+    if (isDuplicate) {
+        if (!confirm(`Ya existe un pedido con el número ${orderData.orderNumber}. ¿Deseas reemplazarlo?`)) {
+            showNotification('Guardado cancelado', 'info');
+            return;
+        }
+        // Si decide reemplazar, buscamos el ID del anterior y lo borramos
+        // (O podríamos actualizarlo, pero borrar y crear es más simple aquí)
+        const orders = await getAllOrders();
+        const existingOrder = orders.find(o => o.orderNumber === orderData.orderNumber);
+        if (existingOrder) {
+            await deleteOrderFromDB(existingOrder.id);
+            showNotification('Pedido anterior eliminado', 'info');
+        }
+    }
+
+    try {
+        await saveOrderToDB(orderData);
+        showNotification('Pedido guardado correctamente', 'success');
+        closeModal();
+        loadOrders();
+        updateStats();
+        navigateToSection('data');
+    } catch (error) {
+        console.error('Error al guardar:', error);
+        showNotification('Error al guardar el pedido', 'error');
+    }
+}
+
+async function checkDuplicateOrder(orderNumber) {
+    if (!orderNumber) return false;
+    const orders = await getAllOrders();
+    return orders.some(order => order.orderNumber === orderNumber);
+}
+
+// ===== UTILIDADES =====
+function blobToBase64(blob) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+    });
+}
+
+function showLoading(show) {
+    const overlay = document.getElementById('loading-overlay');
+    if (show) {
+        overlay.classList.remove('hidden');
+    } else {
+        overlay.classList.add('hidden');
+    }
 }
 
 function showNotification(message, type = 'info') {
