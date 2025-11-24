@@ -677,6 +677,7 @@ async function exportData() {
 }
 
 // ===== EJEMPLO =====
+// ===== EJEMPLO =====
 function loadExampleOrder() {
     const exampleData = {
         clientName: 'Empresa Ejemplo S.L.',
@@ -690,17 +691,19 @@ function loadExampleOrder() {
         notes: 'Entrega urgente - Cliente preferente'
     };
 
-    showOrderReviewModal(exampleData);
-}
+    // Crear una imagen de ejemplo (1x1 pixel transparente) para que no falle al guardar
+    const canvas = document.createElement('canvas');
+    canvas.width = 1;
+    canvas.height = 1;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = 'rgba(0,0,0,0)';
+    ctx.fillRect(0, 0, 1, 1);
 
-// ===== UTILIDADES =====
-function showLoading(show) {
-    const overlay = document.getElementById('loading-overlay');
-    if (show) {
-        overlay.classList.remove('hidden');
-    } else {
-        overlay.classList.add('hidden');
-    }
+    canvas.toBlob((blob) => {
+        const imageUrl = URL.createObjectURL(blob);
+        currentImageData = imageUrl;
+        showOrderReviewModal(exampleData);
+    }, 'image/png');
 }
 
 function showNotification(message, type = 'info') {
