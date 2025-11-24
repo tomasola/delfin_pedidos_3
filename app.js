@@ -307,8 +307,8 @@ async function processImage(imageBlob) {
         const base64Image = await blobToBase64(imageBlob);
         const base64Data = base64Image.split(',')[1];
 
-        // Llamar a la API de Gemini (v1)
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+        // Llamar a la API de Gemini (v1beta)
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
