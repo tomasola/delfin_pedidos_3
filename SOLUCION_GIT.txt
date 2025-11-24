@@ -1,0 +1,22 @@
+# 🚨 SOLUCIÓN AL ERROR "Repository not found"
+
+El error ocurre porque el repositorio no existe en GitHub. Debes crearlo primero.
+
+## Opción A: Usando la terminal (Recomendado)
+
+Copia y pega este comando en tu PowerShell:
+
+```powershell
+gh repo create delfin-pedidos-1 --public --source=. --remote=origin --push
+```
+
+## Opción B: Manualmente
+
+1. Ve a https://github.com/new
+2. Crea un repositorio llamado `delfin-pedidos-1`
+3. Ejecuta:
+   ```powershell
+   git remote remove origin
+   git remote add origin https://github.com/tomasola/delfin-pedidos-1.git
+   git push -u origin main
+   ```

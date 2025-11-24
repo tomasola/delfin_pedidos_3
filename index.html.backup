@@ -1,0 +1,447 @@
+<h2 class="card-title">📸 Capturar Pedido</h2>
+</div>
+<div class="card-body">
+    <div class="scan-actions">
+        <button id="btn-camera" class="btn btn-primary btn-large">
+            📷 Activar Cámara
+        </button>
+        <button id="btn-gallery" class="btn btn-secondary btn-large">
+            🖼️ Subir desde Galería
+        </button>
+        <button id="btn-example" class="btn btn-secondary">
+            ✨ Probar Ejemplo
+        </button>
+    </div>
+
+    <div id="camera-preview" class="camera-preview hidden">
+        <video id="video" autoplay playsinline></video>
+        <div class="camera-controls">
+            <button id="btn-capture" class="btn btn-success btn-large">
+                📸 Capturar
+            </button>
+            <button id="btn-cancel-camera" class="btn btn-danger">
+                ❌ Cancelar
+            </button>
+        </div>
+    </div>
+
+    <div id="image-preview" class="camera-preview hidden">
+        <img id="preview-img" src="" alt="Vista previa">
+    </div>
+
+    <input type="file" id="file-input" accept="image/*" class="hidden">
+</div>
+</div>
+</section>
+
+<!-- Sección: Datos -->
+<section id="data-section" class="section">
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-value" id="stat-total">0</div>
+            <div class="stat-label">Total Pedidos</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="stat-today">0</div>
+            <div class="stat-label">Hoy</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="stat-pending">0</div>
+            <div class="stat-label">Pendientes</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h2 class="card-title">📋 Pedidos Guardados</h2>
+            <button id="btn-export" class="btn btn-secondary">
+                💾 Exportar
+            </button>
+        </div>
+        <div class="card-body">
+            <div id="orders-list" class="orders-list">
+                <!-- Los pedidos se cargarán aquí dinámicamente -->
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Sección: Búsqueda -->
+<section id="search-section" class="section">
+    <div class="search-container">
+        <input type="text" id="search-input" class="search-input" placeholder="🔍 Buscar pedidos...">
+        <div class="filters">
+            <button class="filter-chip active" data-filter="all">Todos</button>
+            <button class="filter-chip" data-filter="pendiente">Pendientes</button>
+            <button class="filter-chip" data-filter="procesando">En Proceso</button>
+            <button class="filter-chip" data-filter="completado">Completados</button>
+        </div>
+    </div>
+
+    <div id="search-results" class="orders-list">
+        <!-- Los resultados se mostrarán aquí -->
+    </div>
+</section>
+
+<!-- Sección: Configuración -->
+<section id="config-section" class="section">
+    <div class="card">
+        <div class="card-header">
+            <h2 class="card-title">⚙️ Configuración</h2>
+        </div>
+        <div class="card-body">
+            <div class="form-group">
+                <label class="form-label" for="api-key-input">API Key de Google Gemini</label>
+                <input type="password" id="api-key-input" class="form-input" placeholder="Ingresa tu API key">
+                <p style="font-size: var(--font-size-xs); color: var(--text-muted); margin-top: var(--spacing-xs);">
+                    Obtén tu API key en <a href="https://aistudio.google.com/app/apikey" target="_blank"
+                        style="color: var(--primary-light);">Google AI Studio</a>
+                </p>
+            </div>
+
+            <button id="btn-save-config" class="btn btn-primary">
+                💾 Guardar Configuración
+            </button>
+
+            <hr style="margin: var(--spacing-lg) 0; border: none; border-top: 1px solid hsla(220, 20%, 30%, 0.5);">
+
+            <div class="form-group">
+                <label class="form-label">Gestión de Datos</label>
+                <button id="btn-clear-data" class="btn btn-danger">
+                    🗑️ Borrar Todos los Datos
+                </button>
+            </div>
+
+            <hr style="margin: var(--spacing-lg) 0; border: none; border-top: 1px solid hsla(220, 20%, 30%, 0.5);">
+
+            <div style="color: var(--text-secondary); font-size: var(--font-size-sm);">
+                <p><strong>Versión:</strong> 1.0.0</p>
+                <p><strong>Desarrollado por:</strong> Delfin Team</p>
+                <p style="margin-top: var(--spacing-sm);">
+                    Esta aplicación utiliza Google Gemini AI para extraer automáticamente datos de imágenes de
+                    pedidos.
+                </p>
+            </div>
+        </div>
+    </div>
+</section>
+</div>
+
+<!-- Navegación Inferior -->
+<nav class="bottom-nav">
+    <div class="nav-container">
+        <div class="nav-item active" data-section="scan">
+            <span class="nav-icon">📸</span>
+            <span>Escanear</span>
+        </div>
+        <div class="nav-item" data-section="data">
+            <span class="nav-icon">📊</span>
+            <span>Datos</span>
+        </div>
+        <div class="nav-item" data-section="search">
+            <span class="nav-icon">🔍</span>
+            <span>Buscar</span>
+        </div>
+        <div class="nav-item" data-section="config">
+            <span class="nav-icon">⚙️</span>
+            <span>Config</span>
+        </div>
+    </div>
+</nav>
+
+<!-- Modal: Revisar Datos -->
+<div id="review-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 class="modal-title">✅ Revisar Datos del Pedido</h2>
+            <button class="modal-close" id="modal-close">×</button>
+        </div>
+        <div class="modal-body">
+            <form id="order-form">
+                <h3
+                    style="color: var(--text-secondary); font-size: var(--font-size-base); margin-bottom: var(--spacing-md); border-bottom: 1px solid hsla(220, 20%, 30%, 0.5); padding-bottom: var(--spacing-xs);">
+                    📋 Datos del Cliente
+                </h3>
+
+                <div class="form-group">
+                    <label class="form-label" for="client-name">Nombre del Cliente</label>
+                    <input type="text" id="client-name" class="form-input" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="client-number">Número de Cliente</label>
+                    <input type="text" id="client-number" class="form-input" required>
+                </div>
+
+                <h3
+                    style="color: var(--text-secondary); font-size: var(--font-size-base); margin: var(--spacing-lg) 0 var(--spacing-md); border-bottom: 1px solid hsla(220, 20%, 30%, 0.5); padding-bottom: var(--spacing-xs);">
+                    📦 Datos del Pedido
+                </h3>
+
+                <div class="form-group">
+                    <label class="form-label" for="order-number">Número de Pedido</label>
+                    <input type="text" id="order-number" class="form-input" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="order-date">Fecha</label>
+                    <input type="date" id="order-date" class="form-input" required>
+                </div>
+
+                <h3
+                    style="color: var(--text-secondary); font-size: var(--font-size-base); margin: var(--spacing-lg) 0 var(--spacing-md); border-bottom: 1px solid hsla(220, 20%, 30%, 0.5); padding-bottom: var(--spacing-xs);">
+                    📊 Detalles de Productos
+                </h3>
+
+                <div class="form-group">
+                    <label class="form-label" for="reference-number">Número de Referencia</label>
+                    <input type="text" id="reference-number" class="form-input" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="denomination">Denominación</label>
+                    <input type="text" id="denomination" class="form-input" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="quantity-meters">Cantidad (Metros Lineales)</label>
+                    <input type="number" id="quantity-meters" class="form-input" step="0.01" required>
+                </div>
+
+                <h3
+                    style="color: var(--text-secondary); font-size: var(--font-size-base); margin: var(--spacing-lg) 0 var(--spacing-md); border-bottom: 1px solid hsla(220, 20%, 30%, 0.5); padding-bottom: var(--spacing-xs);">
+                    ℹ️ Información Adicional
+                </h3>
+
+                <div class="form-group">
+                    <label class="form-label" for="order-status">Estado</label>
+                    <select id="order-status" class="form-select" required>
+                        <option value="pendiente">Pendiente</option>
+                        <option value="procesando">En Proceso</option>
+                        <option value="completado">Completado</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="order-notes">Notas</label>
+                    <textarea id="order-notes" class="form-textarea"></textarea>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button id="btn-discard" class="btn btn-danger">
+                ❌ Descartar
+            </button>
+            <button id="btn-save-order" class="btn btn-success">
+                💾 Guardar Pedido
+                <button id="btn-export" class="btn btn-secondary">
+                    💾 Exportar
+                </button>
+        </div>
+        <div class="card-body">
+            <div id="orders-list" class="orders-list">
+                <!-- Los pedidos se cargarán aquí dinámicamente -->
+            </div>
+        </div>
+    </div>
+    </section>
+
+    <!-- Sección: Búsqueda -->
+    <section id="search-section" class="section">
+        <div class="search-container">
+            <input type="text" id="search-input" class="search-input" placeholder="🔍 Buscar pedidos...">
+            <div class="filters">
+                <button class="filter-chip active" data-filter="all">Todos</button>
+                <button class="filter-chip" data-filter="pendiente">Pendientes</button>
+                <button class="filter-chip" data-filter="procesando">En Proceso</button>
+                <button class="filter-chip" data-filter="completado">Completados</button>
+            </div>
+        </div>
+
+        <div id="search-results" class="orders-list">
+            <!-- Los resultados se mostrarán aquí -->
+        </div>
+    </section>
+
+    <!-- Sección: Configuración -->
+    <section id="config-section" class="section">
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">⚙️ Configuración</h2>
+            </div>
+            <div class="card-body">
+                <div class="form-group">
+                    <label class="form-label" for="api-key-input">API Key de Google Gemini</label>
+                    <input type="password" id="api-key-input" class="form-input" placeholder="Ingresa tu API key">
+                    <p style="font-size: var(--font-size-xs); color: var(--text-muted); margin-top: var(--spacing-xs);">
+                        Obtén tu API key en <a href="https://aistudio.google.com/app/apikey" target="_blank"
+                            style="color: var(--primary-light);">Google AI Studio</a>
+                    </p>
+                </div>
+
+                <button id="btn-save-config" class="btn btn-primary">
+                    💾 Guardar Configuración
+                </button>
+
+                <hr style="margin: var(--spacing-lg) 0; border: none; border-top: 1px solid hsla(220, 20%, 30%, 0.5);">
+
+                <div class="form-group">
+                    <label class="form-label">Gestión de Datos</label>
+                    <button id="btn-clear-data" class="btn btn-danger">
+                        🗑️ Borrar Todos los Datos
+                    </button>
+                </div>
+
+                <hr style="margin: var(--spacing-lg) 0; border: none; border-top: 1px solid hsla(220, 20%, 30%, 0.5);">
+
+                <div style="color: var(--text-secondary); font-size: var(--font-size-sm);">
+                    <p><strong>Versión:</strong> 1.0.0</p>
+                    <p><strong>Desarrollado por:</strong> Delfin Team</p>
+                    <p style="margin-top: var(--spacing-sm);">
+                        Esta aplicación utiliza Google Gemini AI para extraer automáticamente datos de imágenes de
+                        pedidos.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
+
+<!-- Navegación Inferior -->
+<nav class="bottom-nav">
+    <div class="nav-container">
+        <div class="nav-item active" data-section="scan">
+            <span class="nav-icon">📸</span>
+            <span>Escanear</span>
+        </div>
+        <div class="nav-item" data-section="data">
+            <span class="nav-icon">📊</span>
+            <span>Datos</span>
+        </div>
+        <div class="nav-item" data-section="search">
+            <span class="nav-icon">🔍</span>
+            <span>Buscar</span>
+        </div>
+        <div class="nav-item" data-section="config">
+            <span class="nav-icon">⚙️</span>
+            <span>Config</span>
+        </div>
+    </div>
+</nav>
+
+<!-- Modal: Revisar Datos -->
+<div id="review-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 class="modal-title">✅ Revisar Datos del Pedido</h2>
+            <button class="modal-close" id="modal-close">×</button>
+        </div>
+        <div class="modal-body">
+            <form id="order-form">
+                <h3
+                    style="color: var(--text-secondary); font-size: var(--font-size-base); margin-bottom: var(--spacing-md); border-bottom: 1px solid hsla(220, 20%, 30%, 0.5); padding-bottom: var(--spacing-xs);">
+                    📋 Datos del Cliente
+                </h3>
+
+                <div class="form-group">
+                    <label class="form-label" for="client-name">Nombre del Cliente</label>
+                    <input type="text" id="client-name" class="form-input" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="client-number">Número de Cliente</label>
+                    <input type="text" id="client-number" class="form-input" required>
+                </div>
+
+                <h3
+                    style="color: var(--text-secondary); font-size: var(--font-size-base); margin: var(--spacing-lg) 0 var(--spacing-md); border-bottom: 1px solid hsla(220, 20%, 30%, 0.5); padding-bottom: var(--spacing-xs);">
+                    📦 Datos del Pedido
+                </h3>
+
+                <div class="form-group">
+                    <label class="form-label" for="order-number">Número de Pedido</label>
+                    <input type="text" id="order-number" class="form-input" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="order-date">Fecha</label>
+                    <input type="date" id="order-date" class="form-input" required>
+                </div>
+
+                <h3
+                    style="color: var(--text-secondary); font-size: var(--font-size-base); margin: var(--spacing-lg) 0 var(--spacing-md); border-bottom: 1px solid hsla(220, 20%, 30%, 0.5); padding-bottom: var(--spacing-xs);">
+                    📊 Detalles de Productos
+                </h3>
+
+                <div class="form-group">
+                    <label class="form-label" for="reference-number">Número de Referencia</label>
+                    <input type="text" id="reference-number" class="form-input" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="denomination">Denominación</label>
+                    <input type="text" id="denomination" class="form-input" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="quantity-meters">Cantidad (Metros Lineales)</label>
+                    <input type="number" id="quantity-meters" class="form-input" step="0.01" required>
+                </div>
+
+                <h3
+                    style="color: var(--text-secondary); font-size: var(--font-size-base); margin: var(--spacing-lg) 0 var(--spacing-md); border-bottom: 1px solid hsla(220, 20%, 30%, 0.5); padding-bottom: var(--spacing-xs);">
+                    ℹ️ Información Adicional
+                </h3>
+
+                <div class="form-group">
+                    <label class="form-label" for="order-status">Estado</label>
+                    <select id="order-status" class="form-select" required>
+                        <option value="pendiente">Pendiente</option>
+                        <option value="procesando">En Proceso</option>
+                        <option value="completado">Completado</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="order-notes">Notas</label>
+                    <textarea id="order-notes" class="form-textarea"></textarea>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button id="btn-discard" class="btn btn-danger">
+                ❌ Descartar
+            </button>
+            <button id="btn-save-order" class="btn btn-success">
+                💾 Guardar Pedido
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Overlay -->
+<div id="loading-overlay" class="loading-overlay hidden">
+    <div class="loading"></div>
+    <div class="loading-text">Procesando imagen...</div>
+</div>
+
+<!-- Script -->
+<script src="app.js"></script>
+
+<!-- Service Worker Registration -->
+<script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/service-worker.js')
+                .then(registration => {
+                    console.log('Service Worker registrado correctamente:', registration.scope);
+                })
+                .catch(error => {
+                    console.log('Error al registrar Service Worker:', error);
+                });
+        });
+    }
+</script>
+</body>
+
+</html>
